@@ -1,15 +1,6 @@
-import express from 'express';
-import dotenv from 'dotenv';
+import env from './config/env.js';
+import app from './app.js';
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 5001;
-
-app.get('/', (_req, res) => {
-  res.send('Hello, from Authly Server!');
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(env.PORT, () => {
+  console.log(`Authly server is running on port ${env.PORT}`);
 });
