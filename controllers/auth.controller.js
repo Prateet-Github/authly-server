@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import { serializeUser } from "../utils/serializeUser.js";
+import { generateRandomToken } from "../utils/token.js";
+import EmailVerificationToken from "../models/emailVerificationToken.model.js";
 
 export const registerUser = async (req, res) => {
   try {
@@ -27,9 +29,21 @@ export const registerUser = async (req, res) => {
       passwordHash: password,
     });
 
+    const token = generateRandomToken();
+
+    await EmailVerificationToken.create({
+      userId: user._id,
+      token,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour expiration
+    });
+
+    // TODO: send email here (next step)
+    console.log(
+      `Verify email: http://localhost:5001/api/auth/verify-email?token=${token}`
+    );
+
     return res.status(201).json({
-      message: "User registered successfully",
-      user: serializeUser(user),
+      message: "User registered successfully. Please verify your email.",
     });
   } catch (error) {
     console.error("Error registering user:", error);
@@ -97,3 +111,33 @@ export const loginUser = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ message: "Verification token is required" });
+    }
+    
+    const record = await EmailVerificationToken.findOne({ token });
+    if (!record) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+    
+    const user = await User.findById(record.userId);
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    user.emailVerified = true;
+    await user.save();
+
+    await EmailVerificationToken.deleteOne({ _id: record._id });
+
+    return res.status(200).json({ message: "Email verified successfully" });
+
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
