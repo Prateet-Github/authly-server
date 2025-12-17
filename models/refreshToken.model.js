@@ -8,10 +8,9 @@ const refreshTokenSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    token: {
+    tokenHash: {
       type: String,
       required: true,
-      unique: true,
       index: true,
     },
     expiresAt: {

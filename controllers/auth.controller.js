@@ -5,6 +5,7 @@ import { generateRandomToken } from "../utils/token.js";
 import EmailVerificationToken from "../models/emailVerificationToken.model.js";
 import RefreshToken from "../models/refreshToken.model.js";
 import { verifyRefreshToken } from "../utils/jwt.js";
+import { hashToken } from "../utils/hash.js";
 
 export const registerUser = async (req, res) => {
   try {
@@ -99,10 +100,11 @@ export const loginUser = async (req, res) => {
 
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
+    const refreshTokenHash = hashToken(refreshToken);
 
     await RefreshToken.create({
       userId: user._id,
-      token: refreshToken,
+      tokenHash: refreshTokenHash,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiration
     });
 
@@ -157,7 +159,13 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(400).json({ message: "Refresh token is required" });
     }
 
-    const storedToken = await RefreshToken.findOne({ token: refreshToken });
+    const refreshTokenHash = hashToken(refreshToken);
+
+    const storedToken = await RefreshToken.findOne({
+      tokenHash: refreshTokenHash,
+      revokedAt: null,
+    });
+
     if (!storedToken || storedToken.expiresAt < new Date()) {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
@@ -165,14 +173,27 @@ export const refreshAccessToken = async (req, res) => {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.sub);
 
-    if(!user || user.status !== "active") {
-      return res.status(401).json({ message: "User not aalowed"});
+    if (!user || user.status !== "active") {
+      return res.status(401).json({ message: "User not allowed" });
     }
 
+    // 🔁 ROTATION
+    storedToken.revokedAt = new Date();
+    await storedToken.save();
+
     const newAccessToken = signAccessToken(user);
+    const newRefreshToken = signRefreshToken(user);
+    const newRefreshTokenHash = hashToken(newRefreshToken);
+
+    await RefreshToken.create({
+      userId: user._id,
+      tokenHash: newRefreshTokenHash,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
 
     return res.status(200).json({
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     });
 
   } catch (error) {
