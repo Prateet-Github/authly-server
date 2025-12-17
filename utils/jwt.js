@@ -21,3 +21,11 @@ export const signRefreshToken = (user) => {
     { expiresIn: env.JWT_REFRESH_EXPIRES_IN }
   );
 };
+
+export const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, env.JWT_REFRESH_SECRET);
+  } catch (error) {
+    throw new Error("Invalid refresh token");
+  }
+};

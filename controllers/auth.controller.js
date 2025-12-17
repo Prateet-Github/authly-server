@@ -3,6 +3,8 @@ import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import { serializeUser } from "../utils/serializeUser.js";
 import { generateRandomToken } from "../utils/token.js";
 import EmailVerificationToken from "../models/emailVerificationToken.model.js";
+import RefreshToken from "../models/refreshToken.model.js";
+import { verifyRefreshToken } from "../utils/jwt.js";
 
 export const registerUser = async (req, res) => {
   try {
@@ -98,6 +100,12 @@ export const loginUser = async (req, res) => {
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
 
+    await RefreshToken.create({
+      userId: user._id,
+      token: refreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiration
+    });
+
     return res.status(200).json({
      message: "Login successful",
      tokens: {
@@ -141,3 +149,34 @@ export const verifyEmail = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 }
+
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token is required" });
+    }
+
+    const storedToken = await RefreshToken.findOne({ token: refreshToken });
+    if (!storedToken || storedToken.expiresAt < new Date()) {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    const payload = verifyRefreshToken(refreshToken);
+    const user = await User.findById(payload.sub);
+
+    if(!user || user.status !== "active") {
+      return res.status(401).json({ message: "User not aalowed"});
+    }
+
+    const newAccessToken = signAccessToken(user);
+
+    return res.status(200).json({
+      accessToken: newAccessToken,
+    });
+
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
