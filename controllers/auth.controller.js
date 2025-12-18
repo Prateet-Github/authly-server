@@ -262,3 +262,33 @@ export const getMe = async (req, res) => {
     user: serializeUser(req.user),
   });
 };
+
+export const deleteSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params; // ✅ MATCHES ROUTE
+
+    if (!sessionId) {
+      return res.status(400).json({ message: "Session ID is required" });
+    }
+
+    const session = await RefreshToken.findOne({
+      _id: sessionId,
+      userId: req.user._id,
+      revokedAt: null,
+    });
+
+    if (!session) {
+      return res
+        .status(404)
+        .json({ message: "Session not found or already revoked" });
+    }
+
+    session.revokedAt = new Date();
+    await session.save();
+
+    return res.json({ message: "Session revoked successfully" });
+  } catch (error) {
+    console.error("Error deleting session:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
