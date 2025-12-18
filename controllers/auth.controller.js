@@ -6,6 +6,7 @@ import EmailVerificationToken from "../models/emailVerificationToken.model.js";
 import RefreshToken from "../models/refreshToken.model.js";
 import { verifyRefreshToken } from "../utils/jwt.js";
 import { hashToken } from "../utils/hash.js";
+import { serializeSession } from "../utils/serializeSession.js";
 
 export const registerUser = async (req, res) => {
   try {
@@ -210,14 +211,24 @@ export const refreshAccessToken = async (req, res) => {
 
 export const getSessions = async (req, res) => {
   try {
-    const sessions = await RefreshToken.find({ 
-      userId: req.user._id, 
-      revokedAt: null, 
-      expiresAt: { $gt: new Date() }
-    }).sort({ createdAt: -1 });
-    
-    return res.status(200).json({ sessions });
+    const currentRefreshToken =
+      req.headers["x-refresh-token"]; // OR cookie later
 
+    const currentTokenHash = currentRefreshToken
+      ? hashToken(currentRefreshToken)
+      : null;
+
+    const sessions = await RefreshToken.find({
+      userId: req.user._id,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    const formatted = sessions.map((s) =>
+      serializeSession(s, currentTokenHash)
+    );
+
+    return res.status(200).json({ sessions: formatted });
   } catch (error) {
     console.error("Error getting sessions:", error);
     return res.status(500).json({ message: "Server error" });
