@@ -13,6 +13,10 @@ const refreshTokenSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
+    ipAddress:String,
+    userAgent:String,
+
     expiresAt: {
       type: Date,
       required: true,
@@ -20,6 +24,10 @@ const refreshTokenSchema = new mongoose.Schema(
     revokedAt: {
       type: Date,
       default: null,
+    },
+    lastUsedAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }

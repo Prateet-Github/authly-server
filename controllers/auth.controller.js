@@ -106,6 +106,8 @@ export const loginUser = async (req, res) => {
       userId: user._id,
       tokenHash: refreshTokenHash,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiration
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
     });
 
     return res.status(200).json({
@@ -177,7 +179,11 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ message: "User not allowed" });
     }
 
-    // 🔁 ROTATION
+    storedToken.lastUsedAt = new Date();
+    storedToken.revokedAt = new Date();
+    await storedToken.save();
+
+    // ROTATION
     storedToken.revokedAt = new Date();
     await storedToken.save();
 
@@ -200,4 +206,42 @@ export const refreshAccessToken = async (req, res) => {
     console.error("Error refreshing access token:", error);
     return res.status(500).json({ message: "Server error" });
   }
+};
+
+export const getSessions = async (req, res) => {
+  try {
+    const sessions = await RefreshToken.find({ 
+      userId: req.user._id, 
+      revokedAt: null, 
+      expiresAt: { $gt: new Date() }
+    }).sort({ createdAt: -1 });
+    
+    return res.status(200).json({ sessions });
+
+  } catch (error) {
+    console.error("Error getting sessions:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const logout = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  const tokenHash = hashToken(refreshToken);
+
+  await RefreshToken.updateOne(
+    { tokenHash },
+    { revokedAt: new Date() }
+  );
+
+  res.json({ message: "Logged out successfully" });
+};
+
+export const logoutAll = async (req, res) => {
+  await RefreshToken.updateMany(
+    { userId: req.user.id, revokedAt: null },
+    { revokedAt: new Date() }
+  );
+
+  res.json({ message: "Logged out from all devices" });
 };
