@@ -14,9 +14,8 @@ export const protect = async (req, res, next) => {
 
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
 
-    const user = await User.findById(payload.sub).select(
-      "_id email status"
-    );
+    const user = await User.findById(payload.sub);
+    req.user = user;
 
     if (!user || user.status !== "active") {
       return res.status(401).json({ message: "User not allowed" });

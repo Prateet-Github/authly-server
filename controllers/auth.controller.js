@@ -245,3 +245,9 @@ export const logoutAll = async (req, res) => {
 
   res.json({ message: "Logged out from all devices" });
 };
+
+export const getMe = async (req, res) => {
+  return res.status(200).json({
+    user: serializeUser(req.user),
+  });
+};
