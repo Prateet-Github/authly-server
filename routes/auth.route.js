@@ -8,7 +8,9 @@ import {
   logout,
   logoutAll,
   getMe,
-  deleteSession
+  deleteSession,
+  requestPasswordReset,
+  confirmPasswordReset
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/protect.middleware.js";
 
@@ -25,5 +27,8 @@ router.get("/me/sessions", protect, getSessions);
 router.post("/me/logout", protect, logout);
 router.post("/me/logout-all", protect, logoutAll);
 router.delete("/me/sessions/:sessionId", protect, deleteSession);
+
+router.post("/password-reset/request", requestPasswordReset);
+router.post("/password-reset/confirm", confirmPasswordReset);
 
 export default router;
