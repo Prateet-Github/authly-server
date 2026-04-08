@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import env from "./env.js";
 
-mongoose.set("strictQuery", true);
+// mongoose.set("strictQuery", true);
 
-if(env.NODE_ENV === "development") {
-  mongoose.set("debug", true);
-}
+// if(env.NODE_ENV === "development") {
+//   mongoose.set("debug", true);
+// }
 
 const connectDB = async () => {
   try {
