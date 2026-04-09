@@ -8,6 +8,7 @@ import { verifyRefreshToken } from "../utils/jwt.js";
 import { hashToken } from "../utils/hash.js";
 import { serializeSession } from "../utils/serializeSession.js";
 import PasswordResetToken from "../models/passwordResetToken.model.js";
+import { hashPassword, comparePassword } from "../utils/password.js";
 
 export const registerUser = async (req, res) => {
   try {
@@ -28,10 +29,12 @@ export const registerUser = async (req, res) => {
       });
     }
 
+    const hashedPassword = await hashPassword(password);
+
     const user = await User.create({
       email: normalizedEmail,
       name,
-      passwordHash: password,
+      passwordHash: hashedPassword,
     });
 
     const token = generateRandomToken();
@@ -39,10 +42,9 @@ export const registerUser = async (req, res) => {
     await EmailVerificationToken.create({
       userId: user._id,
       token,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour expiration
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     });
 
-    // TODO: send email here (next step)
     console.log(
       `Verify email: http://localhost:5001/api/auth/verify-email?token=${token}`
     );
@@ -120,7 +122,7 @@ export const loginUser = async (req, res) => {
      });
    }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await comparePassword(password, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({
         message: "Invalid credentials",
